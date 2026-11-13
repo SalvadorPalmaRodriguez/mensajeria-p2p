@@ -1,0 +1,70 @@
+# Research Digest — D4b + D5: Inbound P2P Connectivity Ground Truth
+
+## D4b — ICE without STUN/TURN servers
+
+**Claim 1.** ICE connectivity checks are themselves STUN Binding request/response transactions exchanged *peer-to-peer*; a STUN *server* is only needed to discover server-reflexive candidates, not to run ICE itself.
+- Source: https://www.rfc-editor.org/rfc/rfc8445.html — Publisher: IETF/RFC Editor — pub: 2018 — accessed 2026-11-12 — confidence: high — class: primary spec. ("Each check is a STUN request/response transaction that the client will perform on a particular candidate pair.")
+
+**Claim 2.** With zero STUN servers, an ICE agent gathers only host candidates. That is the documented behavior of WebRTC stacks: `{iceServers: []}` (or an empty-URL server) is legal and simply yields host candidates; Chrome ignores URL-less entries.
+- Sources: https://github.com/w3c/webrtc-pc/issues/1949 (W3C WebRTC issue, 2018) and https://stackoverflow.com/questions/55563736/ — accessed 2026-11-12 — confidence: high — class: spec discussion + practitioner confirmation.
+
+**Claim 3.** Peer-reflexive (prflx) candidates let ICE learn a peer's NAT-mapped address *without any STUN server*: when a Binding request arrives from an address not in the peer's candidate list, the receiver synthesizes a prflx candidate and tests it like any other. Triggered checks then accelerate the reverse direction. Limitation: a check must actually arrive inbound for prflx to form — it cannot create reachability that doesn't exist; RFC 8863 (ICE PAC) exists precisely because agents could declare failure before prflx candidates arrived.
+- Sources: https://www.rfc-editor.org/rfc/rfc8445.html (§2 overview, §7.2.5.3.2 valid-pair construction); https://www.rfc-editor.org/rfc/rfc8863.html — accessed 2026-11-12 — confidence: high — class: primary spec.
+
+**Claim 4.** On IPv6 behind a *stateful* firewall (the decision scenario), ICE with host candidates only is genuinely functional: host candidates are real GUAs (no translation → no srflx needed), and each side's outbound check creates conntrack state that admits the peer's inbound check — i.e., the connectivity check IS the hole punch. A 5-tuple stateful firewall behaves like a port-restricted cone NAT without the port-rewrite problem, making it *easier* than IPv4 NAT traversal.
+- Sources: https://blog.apnic.net/2022/04/12/how-nat-traversal-works-figuring-out-firewalls/ (APNIC/Tailscale, 2022-04); https://blog.ipspace.net/2025/04/response-nat-traversal/ and https://blog.ipspace.net/2025/04/response-peer-to-peer-apps-ipv6/ (ipSpace, 2025-04, includes practitioner's PCAP-verified report of P2P VoIP working over IPv6 behind stateful firewalls) — accessed 2026-11-12 — confidence: high — class: practitioner measurements.
+- Corroborating deployment evidence: Jami's daemon explicitly "skip[s] STUN for IPv6 transports (no NAT)" (commit 2117847, savoirfairelinux/jami-daemon, 2026-05-16), and a user ran Jami fully serverless over Yggdrasil IPv6 (no STUN/TURN/UPnP) successfully until a late-2025 regression (forum.jami.net/t/.../5387, 2025-11-19).
+
+**Claim 5.** Caveat for browser WebRTC: since Chrome 76 (Aug 2019), host candidates are exposed to JS as mDNS `.local` names; connectivity degrades when peers can't resolve mDNS (different broadcast domains), in which case the remote side classifies them as prflx. Non-browser ICE stacks gather literal IPs and are unaffected.
+- Sources: https://groups.google.com/g/discuss-webrtc/c/6stQXi72BEU (Chromium PSA); https://groups.google.com/g/discuss-webrtc/c/l0gc3RjBhc0/m/FsMqOlOSBwAJ (M73 release notes) — accessed 2026-11-12 — confidence: high — class: vendor docs.
+
+**Claim 6.** ICE-TCP (RFC 6544) is not a viable inbound mechanism between arbitrary endpoints: browsers ship only *active* TCP candidates (Firefox 54+, Chrome); passive and simultaneous-open candidates were never shipped in any browser because listening sockets behind NAT rarely work. Active↔passive pairs still require one side to have a reachable listener. Jami does carry ICE-TCP patches on pjproject for its signaling channel, but TCP hole punching requires simultaneous-open which production evidence shows is unreliable (see Tox claim, D5) — though DCUtR data now disputes that (see contradiction below).
+- Sources: https://blog.mozilla.org/webrtc/active-ice-tcp-punch-firewalls-directly/ (Mozilla, 2017); https://groups.google.com/g/discuss-webrtc/c/xQjggwGBnT8 ("none of the browsers ever shipped support for passive or SO candidates"); https://github.com/pion/ice/issues/562 (pion added active TCP only in 2023, v3.2.3) — accessed 2026-11-12 — confidence: high — class: vendor docs + issue trackers.
+
+## D5 — What production P2P apps actually ship
+
+### libtorrent / qBittorrent
+**Claim.** Implements all three mapping protocols: UPnP IGD, NAT-PMP, and PCP — PCP attempted first with fallback to NAT-PMP, per listen socket/subnet. qBittorrent enables "UPnP/NAT-PMP port forwarding" **by default** (checked OOTB). On IPv6: UPnP IGD port-mapping does nothing; the IGD2 `WANIPv6FirewallControl AddPinhole` is **not** implemented (issue #4111, open since 2019); PCP *can* open IPv6 firewall pinholes and libtorrent supports that if the router speaks PCP. Additionally libtorrent implements BEP 55 `ut_holepunch` (since 2015; also µTorrent, BitComet, Deluge): a mutually-connected swarm peer relays rendezvous messages so two unreachable peers dial each other simultaneously over uTP — plus the port-reuse trick where the uTP/DHT/tracker UDP socket's NAT mapping doubles as the implied listen port. Hole punching does not work on private torrents (PEX/DHT disabled).
+- Sources: https://libtorrent.org/manual-ref.html and https://libtorrent.org/features-ref.html; https://github.com/arvidn/libtorrent/blob/740a0b9a/src/natpmp.cpp; https://github.com/arvidn/libtorrent/pull/3076 (PCP-first, NAT-PMP fallback); https://github.com/arvidn/libtorrent/issues/4111; https://github.com/qbittorrent/qBittorrent/issues/7715 (default-on confirmed); https://www.bittorrent.org/beps/bep_0055.html; https://www.luiscolunga.com/posts/bep55-holepunch-transmission/ (Transmission lacked it until recently); https://github.com/arvidn/libtorrent/issues/7207 — accessed 2026-11-12 — confidence: high — class: source code + docs + issue trackers.
+
+### Bitcoin Core
+**Claim.** UPnP was default-on historically, disabled after miniupnpc vulnerabilities, then **removed entirely in v29.0** (April 2025). Its replacement is an in-house **PCP implementation with NAT-PMP fallback**, opt-in via `-natpmp`, which explicitly supports **IPv6 pinholing** (firewall traversal, not mapping). Enabling it by default is still debated (issue #31663, open). Documented reality: the dominant inbound mechanism in the wild is **Tor onion services** — ~64–66% of *reachable* nodes are `.onion` (bitnodes snapshot, March 2026); a bnoc.xyz crawl (July 2026) found 99.1% of gossiped IPv6 and 98.8% of IPv4 addresses unreachable (mostly stale churn, but it shows how rarely self-announced clearnet addresses are actually dialable). Otherwise: manual port forwarding or accept outbound-only.
+- Sources: https://bitcoincore.org/en/releases/29.0/ (2025-04); https://github.com/bitcoin/bitcoin/pull/30043 (PCP+IPv6 pinholing); https://github.com/bitcoin/bitcoin/issues/31663 (default-enable debate); https://bitnodes.io/nodes/?q=.onion (2026-03-01 snapshot); https://bnoc.xyz/t/unreachable-addresses-in-bitcoin-getaddr-responses/155 (2026-07 crawl) — accessed 2026-11-12 — confidence: high — class: release notes + PRs + live network measurements.
+
+### Jami
+**Claim.** Uses ICE via patched pjproject (patches in `contrib/src/pjproject`, including ICE-over-TCP). Candidates announced through OpenDHT: all interface addresses + "reflexive" addresses obtained via UPnP + TURN relay — and TURN is **enabled by default** pointing to jami.net's coturn instance (`turn.jami.net`). Two ICE sessions are negotiated for calls (TCP preferred, UDP fallback). IPv6 is treated as directly reachable ("skip STUN for IPv6 transports"). Nothing found for filtered IPv6 beyond host candidates + UPnP — no PCP usage located.
+- Sources: https://docs.jami.net/developer/jami-concepts/calls.html; https://jami.net/establishing-peer-to-peer-connections-with-jami/; https://github.com/savoirfairelinux/jami-daemon/commit/2117847382929b5d42e00e72e864f658a7f5a726 (2026-05-16); https://forum.jami.net/t/dev-update-6-major-bug-fixes/2626 — accessed 2026-11-12 — confidence: high (docs+source); med on "no PCP" (absence of evidence) — class: official docs + source.
+
+### Briar
+**Claim.** Requires no inbound IP reachability at all: per Bramble Rendezvous Protocol, each contact pair derives a shared secret and each peer publishes a dedicated **Tor v3 onion service** (identity key derived from the stream key) while connecting out to the peer's onion. Onion services need no port forwarding/pinholes — this is the key architectural choice: delegate inbound reachability to Tor entirely. Local sync via Bluetooth/Wi-Fi LAN; optional mailbox for store-and-forward.
+- Sources: https://code.briarproject.org/briar/briar-spec/-/blame/master/protocols/BRP.md (BRP spec); https://www.briarproject.org/how-it-works/; https://code.briarproject.org/briar/briar/-/wikis/FAQ — accessed 2026-11-12 — confidence: high — class: protocol spec + official docs.
+
+### Tox
+**Claim.** UDP-first: DHT (UDP-only) locates peers by Tox ID; the DHT doubles as address discovery (peers learn their external IP/port from DHT responses — an informal STUN). UDP hole punching is driven through the DHT; symmetric NAT is handled by routed ping + a port-guessing algorithm ("tries all the ports directly beside the known ports"). Documented rationale: "hole punching with TCP is not as reliable," so fallback is **TCP relays** — friend-routed onion connections via volunteer nodes that themselves "must have fully forwarded TCP ports (NAT-PMP and uPNP can help here)".
+- Sources: https://github.com/irungentoo/toxcore/ (README); https://github.com/irungentoo/toxcore/blob/master/docs/TCP_Network.txt; https://github.com/irungentoo/toxcore/blob/master/docs/updates/Symmetric-NAT-Transversal.md; https://hackage.haskell.org/package/toxcore/docs/src/Network.Tox.DHT.html — accessed 2026-11-12 — confidence: high — class: official docs/source comments.
+
+### Measured success rates & CPE reality
+**Claim.** libp2p's DCUtR hole punching: **70% ± 7.1%** aggregate success (IMC'26 paper, arXiv 2510.27500, 4.4M attempts across 85k networks); ProbeLab's independent honeypot campaign measured 82.9% on port-restricted-cone, ~40% on symmetric NAT, and found ~36% of NAT'd DCUtR peers never obtain the relay reservation needed to even attempt a punch. Notably, **TCP vs QUIC punching was statistically indistinguishable** (~70% both) with RTT-synchronized simultaneous dials.
+- Sources: https://arxiv.org/abs/2510.27500 (Oct 2025); https://github.com/probe-lab/dcutr-project/blob/main/docs/dcutr-final-report.md; https://github.com/probe-lab/network-measurements/blob/main/results/rfm15-nat-hole-punching.md — accessed 2026-11-12 — confidence: high — class: peer-reviewed measurement + replication.
+
+**Claim.** IPv6 hole punching measured *worse* than IPv4 in libp2p — attributed to peers lacking observed public IPv6 addresses to exchange (an address-discovery artifact, not necessarily firewall behavior). Still-open issue.
+- Source: https://github.com/libp2p/go-libp2p/issues/2068 (2023-02, open, P2); corroborated at https://github.com/libp2p/go-libp2p/issues/2782 — accessed 2026-11-12 — confidence: med — class: issue tracker.
+
+**Claim.** Router-side pinhole-protocol availability is spotty: miniupnpd (the de-facto CPE UPnP/NAT-PMP/PCP daemon) ships with `enable_pcp_pmp` defaulting to **no**; OpenWrt refuses to ship it by default citing attack surface; UPnP IGD has a documented bad security reputation, which is exactly why Bitcoin dropped it.
+- Sources: https://github.com/miniupnp/miniupnp/blob/master/miniupnpd/miniupnpd.conf; https://lists.openwrt.org/pipermail/openwrt-devel/2022-January/037753.html — accessed 2026-11-12 — confidence: high — class: config defaults + maintainer list.
+
+## Contradictions
+- **TCP hole punching reliability**: toxcore docs assert TCP punching "is not as reliable" (design rationale for UDP+TCP relays), but the IMC'26 DCUtR measurement found TCP and QUIC success statistically indistinguishable (~70%) when using RTT-synchronized simultaneous open. Both cited; the DCUtR result is newer and empirical but protocol-specific.
+- **UPnP "dangerous" vs "necessary"**: qBittorrent issue #7715 argues default-on UPnP is a security hazard (it exposed a WebUI port); maintainers argue default-off "will be much worse for many, many users" — Bitcoin resolved the same tension by dropping UPnP entirely. Same trade-off, opposite resolutions.
+
+## Leads worth chasing
+- bnoc.xyz crawl methodology for IPv6 unreachability breakdown (firewall-filtered vs stale) — would quantify how much of IPv6 unreachability is stateful firewalls vs dead nodes.
+- libp2p #2068 follow-ups: whether AutoNAT now supports IPv6 observed-address discovery in current go-libp2p releases.
+- Bitcoin #31663 outcome — if `-natpmp`/PCP goes default-on, it's the strongest endorsement yet of PCP IPv6 pinholing for residential use.
+- pjsip/Jami handling of IPv6 firewall filtering (whether Jami relies purely on ICE checks opening pinholes — the Yggdrasil case suggests yes).
+
+## Not found
+- No published success rates for BitTorrent BEP 55 hole punching or for PCP pinhole availability across residential CPE populations.
+- No Jami documentation addressing IPv6 *firewall filtering* specifically (only "no NAT → skip STUN").
+- No standalone (non-browser) documentation quantifying ICE-with-host-candidates-only success on filtered IPv6 — evidence is inferential (stateful-firewall behavior + Jami/Yggdrasil anecdote + ipSpace PCAP report).
+- Briar has no documented fallback for when Tor itself is blocked beyond Snowflake/bridges at the Tor layer (not investigated deeply — outside scope).

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# commit-msg: rechazar mensajes con atribución a herramientas de IA.
+# El autor de los commits es Salvador; nada de "Co-Authored-By" de bots ni
+# líneas tipo "Generated with [Devin](https://devin.ai)".
+set -euo pipefail
+
+msg_file="$1"
+
+# Patrones que indican atribución a una IA/bot y que se rechazan.
+pattern='Generated with|Co-Authored-By:|devin-ai-integration|devin\.ai|\[bot\]'
+
+if grep -Ein "$pattern" "$msg_file"; then
+    echo "commit-msg: el mensaje contiene atribución a una IA/bot." >&2
+    echo "Elimina las líneas 'Generated with …' y 'Co-Authored-By: …' (el autor es Salvador)." >&2
+    exit 1
+fi

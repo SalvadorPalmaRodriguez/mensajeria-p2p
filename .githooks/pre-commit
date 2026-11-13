@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Pre-commit: validar y formatear código Rust.
+# Sin efecto hasta que exista Cargo.toml (proyecto en fase de análisis).
+set -euo pipefail
+
+if [ ! -f Cargo.toml ]; then
+    exit 0
+fi
+
+if ! cargo fmt --all -- --check; then
+    echo "pre-commit: formato incorrecto — ejecuta 'cargo fmt --all' y vuelve a hacer stage" >&2
+    exit 1
+fi
+
+cargo clippy --all-targets --all-features -- -D warnings
