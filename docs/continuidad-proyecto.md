@@ -515,7 +515,7 @@ Tomadas por Salvador durante `bmad-prd`. No modifican ninguna decisión anterior
 
 ### Siguiente paso (2026-11-13)
 
-1. Salvador revisa el PRD y lo aprueba o lo corrige; solo entonces pasa a `status: final`.
+1. Salvador revisa el PRD y lo aprueba o lo corrige; solo entonces pasa a `status: final`. Punto de reanudación: repasar con él, una a una, las ocho suposiciones (sección 12 del PRD) y las ocho cuestiones abiertas (sección 11.2).
 2. **DECISIÓN PENDIENTE:** si la fase de UX (`bmad-ux`) se omite o se aligera, dado que la v1 es una consola por comandos (PROPUESTA del addendum del brief).
 3. Después, `bmad-architecture` (canalización aprobada en «Siguiente fase»), con el PRD y su addendum como entrada.
 
