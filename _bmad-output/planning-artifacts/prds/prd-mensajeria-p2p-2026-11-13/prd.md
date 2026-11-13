@@ -70,14 +70,14 @@ Aprobado hasta ahora: los estados del mensaje, el proceso de fondo y la conserva
 - Solo se borran manualmente, por alguno de los dos usuarios.
 - El borrado lo solicita uno y se aplica en los dos equipos. Funciona como los mensajes: la acción de borrado se envía al otro equipo; si no se puede, queda en reserva en el equipo que la pide y se envía en cuanto el otro tenga la aplicación activa.
 - Limitaciones a declarar (HECHO): la orden pendiente vive en el equipo de quien la pide y solo sale si su aplicación está en marcha cuando el otro aparece; el borrado en el equipo del otro lo ejecuta su aplicación y no se puede comprobar ni imponer desde el propio equipo.
-- Límite de 100 mensajes por conversación, para liberar espacio: al superarlo se eliminan solo los más antiguos según entran los nuevos, de modo que siempre se conservan los últimos 100. El aviso se muestra en el mensaje 99. [ASSUMPTION: la eliminación por límite también se aplica en los dos equipos, como el borrado manual.]
+- Límite de 100 mensajes por conversación, para liberar espacio: al superarlo se eliminan solo los más antiguos según entran los nuevos, de modo que siempre se conservan los últimos 100. Al abrir el chat se informa de la regla: al entrar el mensaje 101 desaparece el 1, al entrar el 102 desaparece el 2, y así; siempre se ven los últimos 100. Es solo informativo, sin confirmación. (Descartado: un aviso en el mensaje 99.) [ASSUMPTION: la eliminación por límite también se aplica en los dos equipos, como el borrado manual.]
 - Descartado en la misma sesión: el borrado al cerrar el chat o al parar la aplicación y el borrado automático a los 10 minutos.
 
 ## Cuestiones abiertas de la sesión (no resueltas)
 
 Sobre la conservación de las conversaciones, para Salvador (detalles sin precisar):
 
-- (2) Límite de 100 mensajes por conversación: si el aviso del mensaje 99 pide confirmación o solo informa; confirmar que la eliminación por límite se aplica en los dos equipos.
+- (2) Límite de 100 mensajes por conversación: confirmar que la eliminación por límite se aplica en los dos equipos.
 - (3) Si los mensajes pendientes de la cola cuentan para el límite y pueden eliminarse sin haberse entregado.
 - (4) HECHO a declarar como limitación: quien se haga con el dispositivo puede leer las conversaciones guardadas; su protección en disco es cuestión de arquitectura.
 
