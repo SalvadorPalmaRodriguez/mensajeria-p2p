@@ -485,9 +485,9 @@ Los tres equipos son máquinas virtuales y network namespaces (regla 8): el éxi
 
 **DECISIÓN APROBADA (siguiente paso):** `bmad-prd`, con el brief y su addendum como entrada.
 
-### PRD en curso (2026-11-13)
+### PRD redactado, pendiente de aprobación (2026-11-13)
 
-> **HECHO (nota de estado, 2026-11-13):** `bmad-prd` está iniciado y **sin terminar**. Borrador (`status: draft`): `_bmad-output/planning-artifacts/prds/prd-mensajeria-p2p-2026-11-13/` (`prd.md`, `addendum.md`, `.memlog.md`). El punto exacto de reanudación está al principio de `prd.md`. El siguiente paso sigue siendo terminar el PRD; no se ha pasado a arquitectura.
+> **HECHO (nota de estado, 2026-11-13):** el PRD está redactado completo y **pendiente de la aprobación de Salvador** (`status: draft` hasta entonces): `_bmad-output/planning-artifacts/prds/prd-mensajeria-p2p-2026-11-13/` (`prd.md`, `addendum.md`, `.memlog.md`, `review-rubric.md`, `reconcile-brief.md`). Contiene 4 recorridos, 35 requisitos funcionales, 10 transversales, las limitaciones declaradas y 17 cuestiones abiertas. La revisión la hizo el propio redactor; no es independiente.
 
 Tomadas por Salvador durante `bmad-prd`. No modifican ninguna decisión anterior; concretan la v1.
 
@@ -499,9 +499,25 @@ Tomadas por Salvador durante `bmad-prd`. No modifican ninguna decisión anterior
 
 **DECISIÓN APROBADA (estados del mensaje):** dos estados vistos por el emisor: pendiente (en la cola de su equipo) y entregado (el equipo del destinatario lo confirma). Sin confirmación sigue pendiente y se reintenta, sin duplicados. No hay estado «leído» en la v1.
 
-**DECISIÓN APROBADA (conservación de las conversaciones):** las conversaciones permanecen en el equipo y solo se borran manualmente, por alguno de los dos usuarios. El borrado lo solicita uno y se aplica en los dos equipos; funciona como los mensajes: si la acción de borrado no puede enviarse, queda en reserva en el equipo que la pide y se envía en cuanto el otro tenga la aplicación activa. HECHO (limitación): el borrado en el equipo del otro lo ejecuta su aplicación y no es verificable ni imponible desde el propio equipo. Límite de 100 mensajes por conversación, para liberar espacio: al superarlo se eliminan solo los más antiguos según entran los nuevos (siempre se conservan los últimos 100). La regla se informa al abrir el chat, sin pedir confirmación; descartado un aviso en el mensaje 99. Descartados en la misma sesión el borrado al cerrar el chat o al parar la aplicación y el borrado automático a los 10 minutos.
+**DECISIÓN APROBADA (conservación de las conversaciones):** las conversaciones permanecen en el equipo y solo se borran manualmente, por alguno de los dos usuarios. El borrado lo solicita uno y se aplica en los dos equipos; funciona como los mensajes: si la acción de borrado no puede enviarse, queda en reserva en el equipo que la pide y se envía en cuanto el otro tenga la aplicación activa. HECHO (limitación): el borrado en el equipo del otro lo ejecuta su aplicación y no es verificable ni imponible desde el propio equipo. Límite de 100 mensajes por conversación, para liberar espacio: al superarlo se eliminan solo los más antiguos según entran los nuevos (siempre se conservan los últimos 100). La regla se informa al abrir el chat, sin pedir confirmación; descartado un aviso en el mensaje 99. La eliminación por límite se aplica en los dos equipos, igual que el borrado manual. Los mensajes pendientes de la cola cuentan para el límite; solo en ese caso se recuerda al usuario que se acerca al límite, un mensaje antes. Si la conversación llega a 100 con pendientes sin entregar, se elimina igualmente el más antiguo aunque sea un pendiente. HECHO (limitación): ese mensaje nunca llegará al destinatario. Descartados en la misma sesión el borrado al cerrar el chat o al parar la aplicación y el borrado automático a los 10 minutos.
 
-**DECISIÓN PENDIENTE (detalles de la conservación):** si la eliminación por límite se aplica también en el otro equipo; si los mensajes pendientes de la cola cuentan para el límite. Cuestiones para Salvador al reanudar el PRD. La protección en disco de las conversaciones guardadas es cuestión de arquitectura.
+**DECISIÓN APROBADA (recordatorio del límite):** cuando hay mensajes pendientes, el recordatorio se da al llegar la conversación al mensaje 99. La protección en disco de las conversaciones guardadas es cuestión de arquitectura.
+
+**DECISIÓN APROBADA (recorridos de conversación y de contacto ausente):** «conversación normal» comprobable = varios mensajes alternos en ambos sentidos en una sesión, sin pérdidas ni repetidos y en orden. Si el contacto deja de ser alcanzable a media conversación, el chat no se cierra: avisa y lo escrito queda pendiente. Un mensaje entregado tarde se muestra con la hora de redacción. Si el proceso de fondo del emisor está parado, la aplicación rechaza el envío y avisa.
+
+**DECISIÓN APROBADA (eliminación de un contacto):** se aplica en los dos equipos y en cascada, para no dejar restos: primero se borran los mensajes en ambos y después se elimina el contacto en ambos. La eliminación del contacto sigue el mismo procedimiento que los mensajes: la orden se envía y, si el otro equipo no está, queda en reserva hasta que aparezca.
+
+**DECISIÓN APROBADA (eliminación con el otro equipo ausente):** desde que se elimina al contacto, el equipo propio deja de aceptar y de mostrar nada de ese equipo; conserva solo lo justo para entregarle las órdenes cuando aparezca. El usuario puede saber en qué punto está la eliminación (órdenes en reserva o cascada completada). La aplicación pide confirmación antes de eliminar. HECHO (limitación): el otro equipo puede no aplicar nunca la orden; 5.1 no ofrece revocación remota garantizada.
+
+**DECISIÓN PENDIENTE (cuestiones del PRD para Salvador):** ocho suposiciones del redactor sin confirmar (sección 12 del PRD) y ocho cuestiones abiertas (sección 11.2), entre ellas si se añade un criterio de éxito que cubra el borrado de conversaciones y la eliminación de un contacto. Ninguna impide pasar a arquitectura.
+
+**DECISIÓN PENDIENTE (cuestiones remitidas a arquitectura):** las de este apartado (tests deterministas frente a la red Tor, autorización en custodia, rotación y épocas, formato del registro, mecanismo de presencia) más las que nacen del PRD: mecanismo de emparejamiento, forma de ejecución del proceso de fondo, protección en disco, y envío y orden de las órdenes de borrado y de eliminación (sección 11.1 del PRD). El PRD no resuelve ninguna.
+
+### Siguiente paso (2026-11-13)
+
+1. Salvador revisa el PRD y lo aprueba o lo corrige; solo entonces pasa a `status: final`.
+2. **DECISIÓN PENDIENTE:** si la fase de UX (`bmad-ux`) se omite o se aligera, dado que la v1 es una consola por comandos (PROPUESTA del addendum del brief).
+3. Después, `bmad-architecture` (canalización aprobada en «Siguiente fase»), con el PRD y su addendum como entrada.
 
 ## 17. Formato obligatorio de los análisis
 
